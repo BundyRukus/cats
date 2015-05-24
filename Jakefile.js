@@ -1,7 +1,8 @@
 // This file contains the build logic for CATS
 
 var workerOptions = [
-    "resource/typings/lib.webworker.d.ts",
+    "resource/typings/lib.es6.d.ts",
+//    "resource/typings/lib.webworker.d.ts",
 
     "src/typings/typescriptServices.d.ts",
     "src/typings/cats.d.ts",
@@ -15,8 +16,8 @@ var workerOptions = [
 
 var catsOptions = [
    
-    "resource/typings/lib.d.ts",
-
+//    "resource/typings/lib.d.ts",
+    "resource/typings/lib.es6.d.ts",
     "src/typings/ace.d.ts",
     "src/typings/cats.d.ts",
     "src/typings/jsuml2.d.ts",
@@ -64,6 +65,9 @@ var catsOptions = [
     "src/cats/gui/toolBar.ts",
     "src/cats/gui/editorTabView.ts",
     "src/cats/gui/statusBar.ts",
+    "src/cats/gui/confirmDialog.ts",
+    "src/cats/gui/promptDialog.ts",
+    "src/cats/gui/quickOpenDialog.ts",
     "src/cats/gui/fileContextMenu.ts",
     "src/cats/gui/configDialog.ts",
     "src/cats/gui/projectSettingsDialog.ts",
@@ -89,7 +93,7 @@ var catsOptions = [
  * Compiler task
  */
 task('compile', {async:true}, function(outFile, options) {
-		var cmd = "node tsc.js --target ES6 --out " + outFile + " " + options.join(" ") ;
+		var cmd = "node tsc.js --target ES5 --out " + outFile + " " + options.join(" ") ;
 
 		// console.log(cmd + "\n");
 		var ex = jake.createExec([cmd]);
@@ -115,7 +119,7 @@ desc("Build the cats.nw distrubution file. Works only on OSX/Linux for now");
 task('dist', {async: true}, function () {
     var getNr = "`git log lib/*.js | grep '^commit ' | wc -l | tr -d ' '`";  
   
-    var cmd = "zip -r ../cats-1.3." + getNr +  ".nw lib/* resource/* node_modules/* CopyrightNotice.txt LICENSE.txt index.html package.json";
+    var cmd = "zip -r ../cats-1.4." + getNr +  ".nw lib/* resource/* node_modules/* CopyrightNotice.txt LICENSE.txt index.html package.json";
     
     jake.exec([cmd], {printStdout: true}, function () {
         console.log('Created cats distribution');

@@ -22,14 +22,14 @@ module Cats.Commands {
      * Close all open projects
      */ 
     function closeAllProjects() {
-        if (IDE.project) IDE.closeProject(IDE.project);
+        if (IDE.project) IDE.project.close();
     }
 
     /**
      * Close the project
      */ 
     function closeProject() { 
-        if (IDE.project) IDE.closeProject(IDE.project);
+        if (IDE.project) IDE.project.close();
     }
 
     /**
@@ -47,6 +47,15 @@ module Cats.Commands {
        if (IDE.project) IDE.editorTabView.addEditor(new Gui.Editor.UMLEditor("Class Diagram"));
     }
 
+    /**
+     * Shows a quick open dialog for the project.
+     */
+    function quickOpen() {
+      if (IDE.project) {
+        var dialog = new Gui.QuickOpenDialog(IDE.project);
+        dialog.show();
+      }
+    }
  
     /**
      * Compile all the sources without actually saving them
@@ -95,8 +104,8 @@ module Cats.Commands {
      * @TODO: for a new project provide template capabilities
      */ 
     function newProject() {
-        var chooser: any = document.getElementById('fileDialog');
-        chooser.onchange = function(evt) {
+        var chooser: HTMLElement = document.getElementById('fileDialog');
+        chooser.onchange = function(evt:Event) {
             IDE.addProject(<string>this.value);
         };
         chooser.click();
@@ -108,8 +117,8 @@ module Cats.Commands {
      * Otherwise open the project in a new window
      */ 
     function openProject() {
-        var chooser: any = document.getElementById('fileDialog');
-        chooser.onchange = function(evt) {
+        var chooser: HTMLElement= document.getElementById('fileDialog');
+        chooser.onchange = function(evt:Event) {
             IDE.addProject(<string>this.value);
         };
         chooser.click();
@@ -126,9 +135,10 @@ module Cats.Commands {
             registry(CMDS.project_refresh, refreshProject);
             registry(CMDS.project_run, runProject);
             // registry(CMDS.project_debug, label: "Debug Project",null, icon: "debug.png" });
+            registry(CMDS.project_quickOpen, quickOpen);
             registry(CMDS.project_classDiagram, showDiagram);
             registry(CMDS.project_configure, configureProject);
-             registry(CMDS.project_document, documentProject);
+            registry(CMDS.project_document, documentProject);
         }
 
     }

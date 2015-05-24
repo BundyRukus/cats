@@ -28,26 +28,32 @@ module Cats.TSWorker {
  * 
  */ 
 export class ScriptInfo {
-        public version: number = 1;
-        public editRanges: { length: number; textChangeRange: TypeScript.TextChangeRange; }[] = [];
-        private lineMap: TypeScript.LineMap = null;
-
-        constructor(public fileName: string, private content: string) {
+        private version: number = 1;
+        public editRanges: { length: number; textChangeRange: ts.TextChangeRange; }[] = [];
+ 
+        constructor(public fileName: string, private content: string, private ls:ts.LanguageService) {
             this.setContent(content);
         }
 
         private setContent(content: string): void {
             this.content = content;
-            this.lineMap = null;
         }
 
-        public getLineMap() {
-            if (! this.lineMap) this.lineMap = TypeScript.LineMap1.fromString(this.content);
-            return this.lineMap;
+        public getSourceFile() {
+            return this.ls.getSourceFile(this.fileName);
         }
 
         public getContent() {
             return this.content;
+        }
+
+        public isOpen() {
+            return false; // @TODO
+        }
+
+
+        public getVersion() {
+            return this.version + ""; 
         }
 
         public updateContent(content: string): void {
@@ -56,6 +62,7 @@ export class ScriptInfo {
             this.version++;
         }
 
+        /*
         public editContent(minChar: number, limChar: number, newText: string): void {
             // Apply edits
             var prefix = this.content.substring(0, minChar);
@@ -66,34 +73,36 @@ export class ScriptInfo {
             // Store edit range + new length of script
             this.editRanges.push({
                 length: this.content.length,
-                textChangeRange: new TypeScript.TextChangeRange(
-                    TypeScript.TextSpan.fromBounds(minChar, limChar), newText.length)
+                textChangeRange: new ts.TextChangeRange(
+                    ts.TextSpan.fromBounds(minChar, limChar), newText.length)
             });
 
             // Update version #
             this.version++;
         }
 
-        public getTextChangeRangeSinceVersion(version: number): TypeScript.TextChangeRange {
+        public getTextChangeRangeSinceVersion(version: number): ts.TextChangeRange {
             if (this.version === version) {
                 // No edits!
-                return TypeScript.TextChangeRange.unchanged;
+                return ts.TextChangeRange.unchanged;
             }
 
             var initialEditRangeIndex = this.editRanges.length - (this.version - version);
 
             var entries = this.editRanges.slice(initialEditRangeIndex);
-            return TypeScript.TextChangeRange.collapseChangesAcrossMultipleVersions(entries.map(e => e.textChangeRange));
+            return ts.TextChangeRange.collapseChangesAcrossMultipleVersions(entries.map(e => e.textChangeRange));
         }
+        */
+        
         
         /**
          * Convert a TS offset position to a Cats Position
          */
         positionToLineCol(position: number): Position {
-            var result = this.getLineMap().getLineAndCharacterFromPosition(position);
+            var result = this.getSourceFile().getLineAndCharacterOfPosition(position);
             return {
-                row: result.line(),
-                column: result.character()
+                row: result.line,
+                column: result.character
             };
         }
         
@@ -101,7 +110,8 @@ export class ScriptInfo {
          * Get the chars offset based on the Ace position
          */ 
         getPositionFromCursor(cursor: Position): number {
-            var pos = this.getLineMap().getPosition(cursor.row, cursor.column);
+            var pos = this.getSourceFile().getPositionOfLineAndCharacter(cursor.row, cursor.column);
+            // var pos = this.getLineMap().getPosition(cursor.row, cursor.column);
             return pos;
         }
         
@@ -109,26 +119,29 @@ export class ScriptInfo {
          * Retieve the line of code that contains a certain range. Used to provide the 
          * user with contexts of what is found
          */
-        getLine(span:TypeScript.TextSpan) {
-            var min = this.content.substring(0, span.start()).lastIndexOf("\n");
-            var max = this.content.substring(span.end()).indexOf("\n");
-            return this.content.substring(min + 1, span.end() + max);
+        getLine(span:ts.TextSpan) {
+            var end = spanEnd(span);
+            var min = this.content.substring(0, span.start).lastIndexOf("\n");
+            var max = this.content.substring(end).indexOf("\n");
+            if ((span.start - min) > 100) min = span.start - 100;
+            if (max > 100) max = 100;
+            return this.content.substring(min + 1, end + max);
         }
         
         /**
          * Get an CATS Range from TS minChars and limChars
          */ 
-        getRange(minChar: number, limChar: number): Cats.Range {
+        getRange(minChar: number, len: number): Cats.Range {
             var result = {
                 start: this.positionToLineCol(minChar),
-                end: this.positionToLineCol(limChar)
+                end: this.positionToLineCol(minChar+len)
             };
             return result;
         }
         
         
-        getRangeFromSpan(textSpan: TypeScript.TextSpan) {
-            return this.getRange(textSpan.start(), textSpan.end());
+        getRangeFromSpan(textSpan: ts.TextSpan) {
+            return this.getRange(textSpan.start, textSpan.length);
         }
         
         /**
@@ -158,7 +171,7 @@ export class ScriptInfo {
          * Get a snapshot for this script
          */ 
         getScriptSnapshot() {
-             return  TypeScript.ScriptSnapshot.fromString(this.content);
+             return  ts.ScriptSnapshot.fromString(this.content);
         }
 
         

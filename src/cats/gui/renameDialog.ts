@@ -33,7 +33,6 @@ module Cats.Gui {
         }
 
 
-
         run(fileName: string, project: Project, pos: Position) {
             project.iSense.getRenameInfo(fileName, pos, (err, data) => {
                 if (!data) return;
@@ -42,14 +41,15 @@ module Cats.Gui {
                     return;
                 }
 
-                var newName = prompt("Rename " + data.displayName + " into:");
-                if (!newName) return;
-                project.iSense.findRenameLocations(fileName, pos, false, false, (err, data: Cats.FileRange[]) => {
-                    // renameOccurences(data, newName);
-                });
+                var dialog = new Gui.PromptDialog("Rename " + data.displayName + " into:");
+                dialog.onSuccess = (newName: string) => {
+                  project.iSense.findRenameLocations(fileName, pos, false, false, (err:any, data: Cats.FileRange[]) => {
+                      // renameOccurences(data, newName);
+                  });
+                };
+                dialog.show();
             });
         }
-
 
 
         private addTextField(label: string, model: string) {

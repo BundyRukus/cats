@@ -17,14 +17,18 @@ importScripts("../resource/typescriptServices.js");
 
 module Cats.TSWorker {
 
+    function respond(message:any) {
+        postMessage(message,null);
+    }
+
     /**
      * Simple function to stub console.log functionality since this is 
      * not available in a worker.
      */
     export var console = {
-        log: function(str: string) { postMessage({ method: "console", params: ["log",str] }); },
-        error: function(str: string) { postMessage({ method: "console", params: ["error",str] }); },
-        info: function(str: string) { postMessage({ method: "console", params: ["info",str] }); }
+        log: function(str: string) { respond({ method: "console", params: ["log",str] }); },
+        error: function(str: string) { respond({ method: "console", params: ["error",str] }); },
+        info: function(str: string) { respond({ method: "console", params: ["info",str] }); }
     };
     
     /**
@@ -39,12 +43,18 @@ module Cats.TSWorker {
         return 0;
     }
 
+
+    export function spanEnd(span:ts.TextSpan) {
+        return span.start + span.length;
+    }
+
     class ISense {
 
         private maxErrors = 100;
         private ls: ts.LanguageService;
         private lsHost: LanguageServiceHost;
         private formatOptions: ts.FormatCodeOptions;
+        private documentRegistry: ts.DocumentRegistry;
 
         /**
          * Create a new TypeScript ISense instance.
@@ -52,11 +62,13 @@ module Cats.TSWorker {
          */
         constructor() {
             this.lsHost = new LanguageServiceHost();
-            this.ls = ts.createLanguageService(this.lsHost, ts.createDocumentRegistry());
-            this.formatOptions = this.getDefaultFormatOptions();
+            this.documentRegistry = ts.createDocumentRegistry();
+            this.ls = ts.createLanguageService(this.lsHost, this.documentRegistry);
+            this.formatOptions = this.getDefaultFormatOptions(); 
         }
 
-        private getDefaultFormatOptions() {
+
+        private getDefaultFormatOptions(): ts.FormatCodeOptions {
             return { 
                 IndentSize: 4,
                 TabSize: 4,
@@ -113,13 +125,27 @@ module Cats.TSWorker {
         public getObjectModel() {
             //Force all symbols to be created.
             this.getAllDiagnostics();
-            
-            var mc = new ModelCreator();
-            this.lsHost.getScriptFileNames().forEach((script) => {
-                if (script.indexOf("lib.d.ts") > 0) return;
-                // @TODO fix
-                // var doc:TypeScript.Document = this.ls["compiler"].getDocument(script);
-                // mc.parse(doc);
+  
+           var mc = new ModelCreator();
+            this.lsHost.getScriptFileNames().forEach((scriptName) => {
+                if (scriptName.indexOf("lib.d.ts") > 0) return;
+                var script = this.lsHost.getScript(scriptName);
+                // var doc:ts.SourceFile = ts.createSourceFile(scriptName, script.getContent(),
+                //        this.lsHost.getCompilationSettings().target, script.getVersion());
+                /*
+                var doc = this.documentRegistry.acquireDocument(
+                    scriptName, 
+                    this.lsHost.getCompilationSettings(), 
+                    script.getScriptSnapshot(),
+                    script.getVersion(), 
+                    script.isOpen()
+                );
+                */
+                var doc = script.getSourceFile();
+    
+                mc.parse(doc);
+                
+                this.documentRegistry.releaseDocument(scriptName, this.lsHost.getCompilationSettings());
             });
             return mc.getModel();
         }
@@ -148,12 +174,15 @@ module Cats.TSWorker {
             if (!(errors && errors.length)) return [];
         
             return errors.map((error) => {
-                var script = this.lsHost.getScript(error.file.filename);  
+                var script = this.lsHost.getScript(error.file.fileName);
+                
+                var message =  ts.flattenDiagnosticMessageText(error.messageText, "\n");
+       
                 return {
-                    range: script.getRange(error.start, error.start + error.length),
+                    range: script.getRange(error.start, error.length),
                     severity: severity,
-                    message: error.messageText,
-                    fileName: error.file.filename
+                    message: message + "",
+                    fileName: error.file.fileName
                 };
             });
             
@@ -205,7 +234,7 @@ module Cats.TSWorker {
             var script = this.lsHost.getScript(fileName);
             return todos.map((todo) => {
                 var entry:FileRange = {
-                    range: script.getRange(todo.position, todo.position + todo.descriptor.text.length),
+                    range: script.getRange(todo.position, todo.descriptor.text.length),
                     fileName: fileName,
                     message: todo.message
                 };
@@ -257,7 +286,7 @@ module Cats.TSWorker {
                     });
 
                     // No need to request other files if there is only one output file
-                    if (this.lsHost.getCompilationSettings().out) {
+                    if (result.length > 0 && this.lsHost.getCompilationSettings().out) {
                         break;
                     }
                 } catch (err) {/*ignore */}
@@ -279,7 +308,7 @@ module Cats.TSWorker {
          * Tthis method uses a simple mixin to overwrite only the values
          * that are set, leave the other ones at the default value.
          */
-        setSettings(compilerOptions, editorOptions) {
+        setSettings(compilerOptions:ts.CompilerOptions, editorOptions:ts.FormatCodeOptions) {
             this.lsHost.setCompilationSettings(compilerOptions);
 
             
@@ -292,7 +321,7 @@ module Cats.TSWorker {
         }
 
 
-       private isExecutable(kind) {
+       private isExecutable(kind:string) {
             if (kind === "method" || kind === "function" || kind === "constructor") return true;
             return false;
         }
@@ -303,28 +332,25 @@ module Cats.TSWorker {
         /**
          * Convert the data for outline usage.
          */
-        private getOutlineModelData(fileName, data: ts.NavigationBarItem[]) {
+        private getOutlineModelData(fileName:string, data: ts.NavigationBarItem[]) {
             if ((!data) || (!data.length)) {
                 return [];
             }
 
-            var result = [];
+            var result:OutlineModelEntry[] = [];
+            var script = this.lsHost.getScript(fileName);
 
             data.forEach((item) => {
                
                 var extension = this.isExecutable(item.kind) ? "()" : "";
-                var script = this.lsHost.getScript(fileName);
-
-                var entry = {
+    
+                var entry:OutlineModelEntry = {
                     label: item.text + extension,
-                    pos: script.positionToLineCol(item.spans[0].start()),
+                    pos: script.positionToLineCol(item.spans[0].start),
                     kind: item.kind,
-                    kids: []
+                    kids: null
                 };
-
-                if (item.childItems && (item.childItems.length > 0)) {
-                    entry.kids = this.getOutlineModelData(fileName, item.childItems)
-                }
+                entry.kids = this.getOutlineModelData(fileName, item.childItems)
                 result.push(entry);
 
             });
@@ -351,7 +377,7 @@ module Cats.TSWorker {
             }
 
             var temp = mapEdits(edits).sort(function(a, b) {
-                var result = a.edit.span.start() - b.edit.span.start();
+                var result = a.edit.span.start - b.edit.span.start;
                 if (result === 0)
                     result = a.index - b.index;
                 return result;
@@ -369,7 +395,7 @@ module Cats.TSWorker {
                     continue;
                 }
                 var nextEdit = temp[next].edit;
-                var gap = nextEdit.span.start() - currentEdit.span.end();
+                var gap = nextEdit.span.start - spanEnd(currentEdit.span);
 
                 // non-overlapping edits
                 if (gap >= 0) {
@@ -381,7 +407,7 @@ module Cats.TSWorker {
 
                 // overlapping edits: for now, we only support ignoring an next edit 
                 // entirely contained in the current edit.
-                if (currentEdit.span.end() >= nextEdit.span.end()) {
+                if (spanEnd(currentEdit.span) >= spanEnd(nextEdit.span)) {
                     next++;
                     continue;
                 }
@@ -405,16 +431,16 @@ module Cats.TSWorker {
 
             for (var i = edits.length - 1; i >= 0; i--) {
                 var edit = edits[i];
-                var prefix = result.substring(0, edit.span.start());
+                var prefix = result.substring(0, edit.span.start);
                 var middle = edit.newText;
-                var suffix = result.substring(edit.span.end());
+                var suffix = result.substring(edit.span.start + edit.span.length);
                 result = prefix + middle + suffix;
             }
             return result;
         }
 
         public getFormattedTextForRange(fileName: string, range?:Cats.Range): string {
-            var start, end;
+            var start:number, end:number;
             var script = this.lsHost.getScript(fileName);
             
             var content = script.getContent();
@@ -439,7 +465,7 @@ module Cats.TSWorker {
             if (this.lsHost.getScript(fileName)) {
                 this.updateScript(fileName, content);
             } else {
-                this.lsHost.addScript(fileName, content);
+                var script = this.lsHost.addScript(fileName, content, this.ls);
             }
         }
 
@@ -522,7 +548,21 @@ module Cats.TSWorker {
             
             var pos = script.getPositionFromCursor(cursor);
             var result: Cats.FileRange[] = [];
-            var entries: ts.ReferenceEntry[] = this.ls[method](fileName, pos) || [];
+            var entries: ts.ReferenceEntry[];
+            
+            switch (method) {
+                case "getReferencesAtPosition":
+                        entries = this.ls.getReferencesAtPosition(fileName, pos);
+                        break;
+                 case "getOccurrencesAtPosition":
+                        entries = this.ls.getOccurrencesAtPosition(fileName, pos);
+                        break;
+                case "getImplementorsAtPosition":
+                        entries = []; // @TODO this.ls.getImplementorsAtPosition(fileName, pos);
+                        break;
+            } 
+            if (! entries) return result;
+            
             for (var i = 0; i < entries.length; i++) {
                 var ref = entries[i];
                 var refScript = this.lsHost.getScript(ref.fileName);
@@ -547,7 +587,7 @@ module Cats.TSWorker {
             var type = script.determineMemeberMode(pos);
 
             // Lets find out what autocompletion there is possible		
-            var completions = this.ls.getCompletionsAtPosition(fileName, type.pos, type.memberMode) || <ts.CompletionInfo>{};
+            var completions = this.ls.getCompletionsAtPosition(fileName, type.pos) || <ts.CompletionInfo>{};
             if (!completions.entries) return []; // @Bug in TS
             completions.entries.sort(caseInsensitiveSort); // Sort case insensitive
             return completions.entries;
@@ -561,7 +601,7 @@ module Cats.TSWorker {
      * @param value true is busy, false othewise
      */
     function setBusy(value: boolean, methodName:string) {
-        postMessage({ method: "setBusy", params: [value,methodName] });
+        respond({ method: "setBusy", params: [value,methodName] });
     }
 
     /*******************************************************************
@@ -579,8 +619,9 @@ module Cats.TSWorker {
         setBusy(true, methodName);
         
         try {
-            var result = tsh[methodName].apply(tsh,params);
-            postMessage({ id: msg.id, result: result });
+            var fn:Function = tsh[methodName];
+            var result = fn.apply(tsh,params);
+            respond({ id: msg.id, result: result });
         } catch (err) {
             var error = {
                 description: err.description,
@@ -588,7 +629,7 @@ module Cats.TSWorker {
                 method: methodName
             };
             console.error("Error during processing message " + methodName);
-            postMessage({ id: msg.id, error: error });
+            respond({ id: msg.id, error: error });
         } finally {
             setBusy(false, methodName);
         }

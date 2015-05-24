@@ -39,9 +39,13 @@ module Cats.TSWorker {
             return Object.keys(this.scripts);
         }
 
+        getNewLine() {
+            return "\n";
+        }
+
         getScriptIsOpen(fileName: string) {
             // @FIX generates not-implemented yet error in TypeScript if return true;
-            return false; 
+            return this.getScript(fileName).isOpen(); 
         }
 
         getCancellationToken(): ts.CancellationToken {
@@ -57,17 +61,24 @@ module Cats.TSWorker {
             return "";
         }
         
-        getDefaultLibFilename() : string {
+        getDefaultLibFileName(options: ts.CompilerOptions) : string {
             return "";
         }
         
-        getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot {
+        getScriptSnapshot(fileName: string): ts.IScriptSnapshot {
              var script = this.scripts[fileName];
              if (script) return script.getScriptSnapshot();
         }
 
        public log(s: string): void {
        }
+       
+       public trace(s: string): void {
+       }
+       
+       public error(s: string): void {
+       }
+       
     
          public getCompilationSettings(): ts.CompilerOptions {
             return this.compilationSettings; 
@@ -76,7 +87,7 @@ module Cats.TSWorker {
 
         public getScriptVersion(fileName: string): string {
             var script = this.scripts[fileName];            
-            return script.version + "";
+            return script.getVersion();
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -86,20 +97,20 @@ module Cats.TSWorker {
             return this.scripts[fileName];
         }
         
-        public addScript(fileName: string, content: string) {
-            var script = new ScriptInfo(fileName, content);
+        public addScript(fileName: string, content: string, ls:ts.LanguageService) {
+            var script = new ScriptInfo(fileName, content, ls);
             this.scripts[fileName] = script;
+            return script;
         }
 
         public updateScript(fileName: string, content: string) {
             var script =  this.scripts[fileName];
             if (script) {
                 script.updateContent(content);
-            } else {
-               this.addScript(fileName, content);    
-            }
+            } 
         }
 
+        /*
         public editScript(fileName: string, minChar: number, limChar: number, newText: string) {
              var script =  this.scripts[fileName];
             if (script) {
@@ -108,6 +119,7 @@ module Cats.TSWorker {
                 throw new Error("No script with name '" + fileName + "'");
             }
         }
+        */
 
         public setCompilationSettings(compilerOptions: ts.CompilerOptions={}) {
              var options = ts.getDefaultCompilerOptions();
@@ -120,7 +132,7 @@ module Cats.TSWorker {
             // Set values to avoid the compiler trying to load/resolve files
             options.emitBOM = false;
             options.noLib = true;
-            options.noLibCheck = true;
+            options.noLib = true;
             options.noResolve = true;
             this.compilationSettings = options;
         }

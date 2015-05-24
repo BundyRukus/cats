@@ -124,10 +124,7 @@ interface Object {
     propertyIsEnumerable(v: string): boolean;
 }
 
-/**
-  * Provides functionality common to all JavaScript objects.
-  */
-declare var Object: {
+interface ObjectConstructor {
     new (value?: any): Object;
     (): any;
     (value: any): any;
@@ -182,19 +179,19 @@ declare var Object: {
       * Prevents the modification of attributes of existing properties, and prevents the addition of new properties.
       * @param o Object on which to lock the attributes. 
       */
-    seal(o: any): any;
+    seal<T>(o: T): T;
 
     /**
       * Prevents the modification of existing property attributes and values, and prevents the addition of new properties.
       * @param o Object on which to lock the attributes.
       */
-    freeze(o: any): any;
+    freeze<T>(o: T): T;
 
     /**
       * Prevents the addition of new properties to an object.
       * @param o Object to make non-extensible. 
       */
-    preventExtensions(o: any): any;
+    preventExtensions<T>(o: T): T;
 
     /**
       * Returns true if existing property attributes cannot be modified in an object and new properties cannot be added to the object.
@@ -220,6 +217,11 @@ declare var Object: {
       */
     keys(o: any): string[];
 }
+
+/**
+  * Provides functionality common to all JavaScript objects.
+  */
+declare var Object: ObjectConstructor;
 
 /**
   * Creates a new function.
@@ -255,8 +257,8 @@ interface Function {
     caller: Function;
 }
 
-declare var Function: {
-    /** 
+interface FunctionConstructor {
+    /**
       * Creates a new function.
       * @param args A list of arguments the function accepts.
       */
@@ -264,6 +266,8 @@ declare var Function: {
     (...args: string[]): Function;
     prototype: Function;
 }
+
+declare var Function: FunctionConstructor;
 
 interface IArguments {
     [index: number]: any;
@@ -421,26 +425,36 @@ interface String {
       */
     substr(from: number, length?: number): string;
 
+    /** Returns the primitive value of the specified object. */
+    valueOf(): string;
+
     [index: number]: string;
 }
 
-/** 
-  * Allows manipulation and formatting of text strings and determination and location of substrings within strings. 
-  */
-declare var String: {
+interface StringConstructor {
     new (value?: any): String;
     (value?: any): string;
     prototype: String;
     fromCharCode(...codes: number[]): string;
 }
 
+/** 
+  * Allows manipulation and formatting of text strings and determination and location of substrings within strings. 
+  */
+declare var String: StringConstructor;
+
 interface Boolean {
+    /** Returns the primitive value of the specified object. */
+    valueOf(): boolean;
 }
-declare var Boolean: {
+
+interface BooleanConstructor {
     new (value?: any): Boolean;
     (value?: any): boolean;
     prototype: Boolean;
 }
+
+declare var Boolean: BooleanConstructor;
 
 interface Number {
     /**
@@ -466,10 +480,12 @@ interface Number {
       * @param precision Number of significant digits. Must be in the range 1 - 21, inclusive.
       */
     toPrecision(precision?: number): string;
+
+    /** Returns the primitive value of the specified object. */
+    valueOf(): number;
 }
 
-/** An object that represents a number of any kind. All JavaScript numbers are 64-bit floating-point numbers. */
-declare var Number: {
+interface NumberConstructor {
     new (value?: any): Number;
     (value?: any): number;
     prototype: Number;
@@ -497,6 +513,13 @@ declare var Number: {
       * JavaScript displays POSITIVE_INFINITY values as infinity. 
       */
     POSITIVE_INFINITY: number;
+}
+
+/** An object that represents a number of any kind. All JavaScript numbers are 64-bit floating-point numbers. */
+declare var Number: NumberConstructor;
+
+interface TemplateStringsArray extends Array<string> {
+    raw: string[];
 }
 
 interface Math {
@@ -538,7 +561,7 @@ interface Math {
       */
     atan(x: number): number;
     /**
-      * Returns the angle (in radians) from the X axis to a point (y,x).
+      * Returns the angle (in radians) from the X axis to a point.
       * @param y A numeric expression representing the cartesian y-coordinate.
       * @param x A numeric expression representing the cartesian x-coordinate.
       */
@@ -764,7 +787,7 @@ interface Date {
     toJSON(key?: any): string;
 }
 
-declare var Date: {
+interface DateConstructor {
     new (): Date;
     new (value: number): Date;
     new (value: string): Date;
@@ -790,6 +813,8 @@ declare var Date: {
     now(): number;
 }
 
+declare var Date: DateConstructor;
+
 interface RegExpMatchArray extends Array<string> {
     index?: number;
     input?: string;
@@ -813,7 +838,7 @@ interface RegExp {
       */
     test(string: string): boolean;
 
-    /** Returns a copy of the text of the regular expression pattern. Read-only. The rgExp argument is a Regular expression object. It can be a variable name or a literal. */
+    /** Returns a copy of the text of the regular expression pattern. Read-only. The regExp argument is a Regular expression object. It can be a variable name or a literal. */
     source: string;
 
     /** Returns a Boolean value indicating the state of the global flag (g) used with a regular expression. Default is false. Read-only. */
@@ -830,9 +855,11 @@ interface RegExp {
     // Non-standard extensions
     compile(): RegExp;
 }
-declare var RegExp: {
+
+interface RegExpConstructor {
     new (pattern: string, flags?: string): RegExp;
     (pattern: string, flags?: string): RegExp;
+    prototype: RegExp;
 
     // Non-standard extensions
     $1: string;
@@ -847,63 +874,86 @@ declare var RegExp: {
     lastMatch: string;
 }
 
+declare var RegExp: RegExpConstructor;
+
 interface Error {
     name: string;
     message: string;
 }
-declare var Error: {
+
+interface ErrorConstructor {
     new (message?: string): Error;
     (message?: string): Error;
     prototype: Error;
 }
 
+declare var Error: ErrorConstructor;
+
 interface EvalError extends Error {
 }
-declare var EvalError: {
+
+interface EvalErrorConstructor {
     new (message?: string): EvalError;
     (message?: string): EvalError;
     prototype: EvalError;
 }
 
+declare var EvalError: EvalErrorConstructor;
+
 interface RangeError extends Error {
 }
-declare var RangeError: {
+
+interface RangeErrorConstructor {
     new (message?: string): RangeError;
     (message?: string): RangeError;
     prototype: RangeError;
 }
 
+declare var RangeError: RangeErrorConstructor;
+
 interface ReferenceError extends Error {
 }
-declare var ReferenceError: {
+
+interface ReferenceErrorConstructor {
     new (message?: string): ReferenceError;
     (message?: string): ReferenceError;
     prototype: ReferenceError;
 }
 
+declare var ReferenceError: ReferenceErrorConstructor;
+
 interface SyntaxError extends Error {
 }
-declare var SyntaxError: {
+
+interface SyntaxErrorConstructor {
     new (message?: string): SyntaxError;
     (message?: string): SyntaxError;
     prototype: SyntaxError;
 }
 
+declare var SyntaxError: SyntaxErrorConstructor;
+
 interface TypeError extends Error {
 }
-declare var TypeError: {
+
+interface TypeErrorConstructor {
     new (message?: string): TypeError;
     (message?: string): TypeError;
     prototype: TypeError;
 }
 
+declare var TypeError: TypeErrorConstructor;
+
 interface URIError extends Error {
 }
-declare var URIError: {
+
+interface URIErrorConstructor {
     new (message?: string): URIError;
     (message?: string): URIError;
     prototype: URIError;
 }
+
+declare var URIError: URIErrorConstructor;
 
 interface JSON {
     /**
@@ -1107,7 +1157,8 @@ interface Array<T> {
 
     [n: number]: T;
 }
-declare var Array: {
+
+interface ArrayConstructor {
     new (arrayLength?: number): any[];
     new <T>(arrayLength: number): T[];
     new <T>(...items: T[]): T[];
@@ -1117,3 +1168,19 @@ declare var Array: {
     isArray(arg: any): boolean;
     prototype: Array<any>;
 }
+
+declare var Array: ArrayConstructor;
+
+interface TypedPropertyDescriptor<T> {
+    enumerable?: boolean;
+    configurable?: boolean;
+    writable?: boolean;
+    value?: T;
+    get?: () => T;
+    set?: (value: T) => void;
+}
+
+declare type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void;
+declare type PropertyDecorator = (target: Object, propertyKey: string | symbol) => void;
+declare type MethodDecorator = <T>(target: Object, propertyKey: string | symbol, descriptor: TypedPropertyDescriptor<T>) => TypedPropertyDescriptor<T> | void;
+declare type ParameterDecorator = (target: Object, propertyKey: string | symbol, parameterIndex: number) => void;

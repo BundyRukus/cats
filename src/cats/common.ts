@@ -30,6 +30,10 @@ module Cats {
         toolbar: Map<string>;
     }
 
+    export interface CB<T> {
+        (err:any, result:T): void;
+    }
+
    export interface ModelEntry {
         type: string;
         name: string;
@@ -38,6 +42,14 @@ module Cats {
         extends?: Array<string>;
         implements?: Array<string>;
     }   
+
+    export interface OutlineModelEntry{
+        label: string;
+        pos: Position;
+        kind: string;
+        kids: OutlineModelEntry[];
+    };
+
 
     export interface Range {
         start: Position;
@@ -49,6 +61,8 @@ module Cats {
         Warning = <any>"warning",
         Error = <any>"error"
     }
+
+    
 
     export interface FileRange {
         fileName: string;

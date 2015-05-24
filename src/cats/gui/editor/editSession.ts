@@ -41,8 +41,11 @@ module Cats.Gui.Editor {
                 content = OS.File.readTextFile(editor.filePath) ;
 
                 if ( this.isTypeScript() && (!IDE.project.hasScriptFile( editor.filePath )) ) {
-                    var isProjectFile = confirm( "Not yet part of project, add it now?" );
-                    if ( isProjectFile ) IDE.project.addScript( editor.filePath, content );
+                    var addDialog = new Gui.ConfirmDialog("Not yet part of project, add it now?");
+                    addDialog.onConfirm = () => {
+                        IDE.project.addScript(editor.filePath, content);
+                    };
+                    addDialog.show();
                 }
             
             }
@@ -52,7 +55,7 @@ module Cats.Gui.Editor {
             this.configureAceSession(IDE.project.config);
             this.setUndoManager(new UndoManager());
 
-            IDE.project.on("config", (c) => { this.configureAceSession(c); });
+            IDE.project.on("config", (c:ProjectConfiguration) => { this.configureAceSession(c); });
             this.on("change", () => {this.version++});
         }
 
@@ -66,18 +69,18 @@ module Cats.Gui.Editor {
         /**
          * Check if there are any errors for this session and show them.    
          */
-        showAnnotations(result: Cats.FileRange[]) {
+        showAnnotations(result: FileRange[]) {
             if (! result) return;
             var annotations: ace.Annotation[] = [];
-            result.forEach((error: Cats.FileRange) => {
+            result.forEach((error: FileRange) => {
                 annotations.push({
                     row: error.range.start.row,
                     column: error.range.start.column,
                     type: <any>error.severity,
-                    text: error.message
+                    text: error.message + ""
                 });
             });
-            this.setAnnotations(annotations);
+            super.setAnnotations(annotations);
         }
 
 
@@ -126,29 +129,35 @@ module Cats.Gui.Editor {
             var content = this.getValue();
             if (filePath == null) {
                 var dir = OS.File.join(IDE.project.projectDir, "/");
-                filePath = prompt("Please enter the file name", dir);
-                if (! filePath) return;
-                filePath = OS.File.switchToForwardSlashes(filePath);
-                this.editor.setFilePath(filePath);
-                
-                this.mode = this.calculateMode();
-                this.setMode(this.mode); 
-                
-                if ( this.isTypeScript() && (!IDE.project.hasScriptFile(filePath)) ) {
-                    var isProjectFile = confirm( "Not yet part of project, add it now?" );
-                    if (isProjectFile) IDE.project.addScript(filePath, content );
-                }
-                
-            }
+                var dialog = new Gui.PromptDialog("Please enter the file name", dir);
 
-            OS.File.writeTextFile(filePath, content);
-            this.editor.setHasUnsavedChanges(false);
-            this.editor.updateFileInfo();
-            IDE.console.log("Saved file " + filePath);
-            if (this.isTypeScript()) {
-                IDE.project.iSense.updateScript(filePath, content);
-                IDE.project.validate(false);
-                if (IDE.project.config.buildOnSave) Commands.CMDS.project_build.command();
+                dialog.onSuccess = (filePath: string) => {
+                    filePath = OS.File.switchToForwardSlashes(filePath);
+                    this.editor.setFilePath(filePath);
+                    
+                    this.mode = this.calculateMode();
+                    this.setMode(this.mode); 
+                    
+                    if ( this.isTypeScript() && (!IDE.project.hasScriptFile(filePath)) ) {
+                        var addDialog = new Gui.ConfirmDialog("Not yet part of project, add it now?");
+                        addDialog.onConfirm = () => {
+                            IDE.project.addScript(filePath, content);
+                        };
+                        addDialog.show();
+                    }
+                    this.save();
+                };
+                dialog.show();
+            } else {
+                OS.File.writeTextFile(filePath, content);
+                this.editor.setHasUnsavedChanges(false);
+                this.editor.updateFileInfo();
+                IDE.console.log("Saved file " + filePath);
+                if (this.isTypeScript()) {
+                    IDE.project.iSense.updateScript(filePath, content);
+                    IDE.project.validate(false);
+                    if (IDE.project.config.buildOnSave) Commands.CMDS.project_build.command();
+                }
             }
         }
         

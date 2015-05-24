@@ -15,9 +15,9 @@
 // 
 
 module Cats {
-    
+
     var GUI = require('nw.gui');
-    var typedoc;
+    var typedoc: any;
     
     /**
      * The project hold the informaiton related to a single project. This include 
@@ -29,16 +29,16 @@ module Cats {
         projectDir: string;
         name: string;
 
-        private tsfiles:Map<boolean> = {};
+        private tsfiles: Array<string> = [];
 
         // The singleton TSWorker handler instance
         iSense: TSWorkerProxy;
 
         private settings: ProjectSettings;
 
-        linter:Linter;
-        
-        private refreshInterval:number;
+        linter: Linter;
+
+        private refreshInterval: number;
 
         /**    
          * Create a new project.
@@ -52,30 +52,30 @@ module Cats {
             if (this.config.tslint.useLint) this.linter = new Linter(this);
             
             // @TODO optimize only refresh in case of changes
-            this.refreshInterval = setInterval(()=> {this.refreshTodoList()}, 30000);
+            this.refreshInterval = setInterval(() => { this.refreshTodoList() }, 30000);
         }
 
         /**
          * Get the project settings
-         */ 
+         */
         get config() {
             return this.settings.value;
         }
 
         /**
          * Save the project configuration
-         */     
-        updateConfig(config:ProjectConfiguration) {
+         */
+        updateConfig(config: ProjectConfiguration) {
             this.settings.value = config;
             this.emit("config", config);
             if (this.config.tslint.useLint) this.linter = new Linter(this);
             this.settings.store();
             this.iSense.setSettings(this.config.compiler, this.config.codeFormat);
         }
-        
+
         refreshTodoList() {
-            this.iSense.getTodoItems((err,data) => {
-                        IDE.todoList.setData(data);
+            this.iSense.getTodoItems((err, data) => {
+                IDE.todoList.setData(data);
             });
         }
     
@@ -85,21 +85,35 @@ module Cats {
          */
         close() {
             if (IDE.editorTabView.hasUnsavedChanges()) {
-                var c = confirm("You have some unsaved changes that will get lost.\n Continue anyway ?");
-                if (!c) return;
+                var dialog = new Gui.ConfirmDialog("You have some unsaved changes that will get lost.\n Continue anyway ?");
+                dialog.onConfirm = () => {
+                    this._close();
+                };
+            } else {
+                this._close();
             }
+        }
+
+        /**
+         * Close the project without confirmation.
+         * (Internal, do not use directly)
+         */
+        _close() {
+            // Lets clear the various output panes.
             IDE.editorTabView.closeAll();
             IDE.fileNavigator.clear();
             IDE.outlineNavigator.clear();
             IDE.problemResult.clear();
+            IDE.todoList.clear();
             if (this.iSense) this.iSense.stop();
             clearInterval(this.refreshInterval);
+            IDE.project = null;
         }
 
         /**
          * Show the errors on a project level
          */
-        validate(verbose= true) {
+        validate(verbose = true) {
             this.iSense.getAllDiagnostics((err, data) => {
                 if (data) {
                     IDE.problemResult.setData(data);
@@ -107,7 +121,7 @@ module Cats {
                         if (verbose) {
                             IDE.console.log("Project has no errors");
                         }
-                    } 
+                    }
                 }
 
             });
@@ -123,7 +137,7 @@ module Cats {
             if (this.config.customBuild && this.config.customBuild.command) {
                 // IDE.resultbar.selectOption(2);
                 var cmd = this.config.customBuild.command;
-                var options = this.config.customBuild.options || {cwd:null};
+                var options = this.config.customBuild.options || { cwd: null };
 
                 if (!options.cwd) {
                     options.cwd = this.projectDir;
@@ -132,7 +146,7 @@ module Cats {
                 var child = OS.File.runCommand(cmd, options);
 
             } else {
-                this.iSense.compile((err: Error, data: Cats.CompileResults) => {
+                this.iSense.compile((err: Error, data: CompileResults) => {
                     this.showCompilationResults(data);
                     if (data.errors && (data.errors.length > 0)) return;
                     var sources = data.source;
@@ -174,14 +188,14 @@ module Cats {
                     if (this.config.documentation.readme && (this.config.documentation.readme !== "none")) {
                         readme = OS.File.join(this.projectDir, this.config.documentation.readme);
                     }
-                   
+
                     settings.readme = readme;
                     settings.includeDeclarations = this.config.documentation.includeDeclarations || false;
                     settings.verbose = false;
                     settings.theme = this.config.documentation.theme || "default";
                     var app = new typedoc.Application(settings);
                     var dest = OS.File.join(this.projectDir, outputDir);
-                    app.generate(Object.keys(this.tsfiles), dest);
+                    app.generate(this.tsfiles, dest);
                 } finally {
                     win.hide();
                 }
@@ -214,7 +228,7 @@ module Cats {
             srcs.forEach((src: string) => {
                 this.loadTypeScriptFiles(src);
             });
-            
+
             this.refreshTodoList();
 
         }
@@ -223,12 +237,12 @@ module Cats {
          * Compile without actually saving the resulting files
          */
         trialCompile() {
-            this.iSense.compile((err: Error, data: Cats.CompileResults) => {
+            this.iSense.compile((err: Error, data: CompileResults) => {
                 this.showCompilationResults(data);
             });
         }
 
-        private showCompilationResults(data: Cats.CompileResults) {
+        private showCompilationResults(data: CompileResults) {
             if (data.errors && (data.errors.length > 0)) {
                 IDE.problemResult.setData(data.errors);
                 return;
@@ -246,7 +260,7 @@ module Cats {
             if (this.config.customRun && this.config.customRun.command) {
 
                 var cmd = this.config.customRun.command;
-                var options = this.config.customRun.options || {cwd:null};
+                var options = this.config.customRun.options || { cwd: null };
                 if (!options.cwd) {
                     options.cwd = this.projectDir;
                 }
@@ -272,20 +286,24 @@ module Cats {
         }
 
         /**
-         * Get the URl for running the project
+         * Get the URL for running the project
          */
         private getStartURL(): string {
             var url = OS.File.join(this.projectDir, this.config.main);
             return "file://" + url;
         }
 
-        hasScriptFile(fileName:string) {
-            return this.tsfiles[fileName];
+        hasScriptFile(fileName: string) {
+            return this.tsfiles.indexOf(fileName) > -1;
         }
-        
+
         addScript(fullName: string, content: string) {
             this.iSense.addScript(fullName, content);
-            if (! this.hasScriptFile(fullName)) this.tsfiles[fullName] = true;
+            if (!this.hasScriptFile(fullName)) this.tsfiles.push(fullName);
+        }
+
+        getScripts(): Array<string> {
+            return this.tsfiles;
         }
 
         /**

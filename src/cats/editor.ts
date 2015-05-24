@@ -14,20 +14,21 @@
 
 module Cats {
 
+
     /**
      * BaseClass for Editors. Editors should extend this class. The rest of the codebase is only 
      * dependent on this small subset of methods and properties.
      */
     export class Editor extends qx.event.Emitter {
         
-        private static Registry = {}; 
+        private static Registry:Map<Function> = {}; 
         
         label = "Untitled"; // Label to be used on the tab page
  
         // The project this editor belongs to
         project = IDE.project;
         
-        protected properties = {};
+        protected properties:Map<any> = {};
 
         /**
          * Does the Editor have any unsaved changes
@@ -38,8 +39,7 @@ module Cats {
 
 
         static RegisterEditor(name:string,restoreFn:(state:any)=>Editor) {
-            console.info("Registered editor for type " + name);
-            Editor.Registry[name] = restoreFn;
+           Editor.Registry[name] = restoreFn;
         }
         /**
          * Save the content of the editor. Not all editors imeplement this method.
@@ -87,7 +87,7 @@ module Cats {
         }
 
         /**
-         * Get a certin property from the editor
+         * Get a certain property from the editor
          */ 
         get(propertyName: string) {
             return this.properties[propertyName];
@@ -103,7 +103,7 @@ module Cats {
         /**
          * Set a property on the editor
          */ 
-        set(propertyName: string, value) {
+        set(propertyName: string, value:any) {
             if (!propertyName) return;
             this.properties[propertyName] = value;
             this.emit(propertyName, value);
@@ -120,7 +120,7 @@ module Cats {
         /**
          * Command pattern implementation
          */
-        executeCommand(commandName: string, ...args): any { /* NOP */ }
+        executeCommand(commandName: string, ...args:any[]): any { /* NOP */ }
 
 
         /**
@@ -193,12 +193,16 @@ module Cats {
             pages = IDE.editorTabView.getPagesForFile(fileName);
             if (!pages.length) {
                 editor = this.CreateEditor(fileName);
-                if (!editor) {
-                    var c = confirm("No suitable editor found for this file type, open with source editor?");
-                    if (!c) return;
-                    editor = new Gui.Editor.SourceEditor(fileName);
+                if (editor) {
+                    IDE.editorTabView.addEditor(editor, pos);
+                } else {
+                    var dialog = new Gui.ConfirmDialog("No suitable editor found for this file type, open with source editor?");
+                    dialog.onConfirm = () => {
+                      var editor = new Gui.Editor.SourceEditor(fileName);
+                      IDE.editorTabView.addEditor(editor, pos);
+                    };
+                    dialog.show();
                 }
-                IDE.editorTabView.addEditor(editor, pos);
             } else {
                 editor = <FileEditor>pages[0].editor;
                 IDE.editorTabView.setSelection([pages[0]]);

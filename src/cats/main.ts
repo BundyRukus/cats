@@ -47,17 +47,11 @@ module Cats {
         return projectName;
     }
 
-    // Catch unhandled expections so they don't stop the process.
-    process.on("uncaughtException", function(err: any) {
-        console.error("Uncaught exception occured: " + err);
-        console.error(err.stack);
-        if (IDE.console) IDE.console.error(err.stack);
-    });
 
 
     /**
-     * This is the functions that start kicks it all of. When Qooxdoo is loaded it will 
-     * call this main to start the application 
+     * This is the functions that kicks it all of. When Qooxdoo is loaded it will 
+     * call this main to start the application. 
      */
     function main(app: qx.application.Standalone) {
         var GUI = require('nw.gui');
@@ -83,8 +77,16 @@ module Cats {
         }
     }
 
+    // Catch unhandled expections so they don't stop the process.
+    process.on("uncaughtException", function(err: any) {
+        console.error("Uncaught exception occured: " + err);
+        console.error(err.stack);
+        if (IDE.console) IDE.console.error(err.stack);
+    });
+
     // Register the main method that once Qooxdoo is loaded is called
     qx.registry.registerMainMethod(main);
+    
 }
 
 

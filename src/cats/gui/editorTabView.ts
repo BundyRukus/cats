@@ -37,16 +37,20 @@ module Cats.Gui {
             editor.on("errors", this.setHasErrors, this);
         }
 
-        continueWhenNeedSaving() {
-             if (this.editor.hasUnsavedChanges()) {
-                var con = confirm("There are unsaved changes!\nDo you really want to continue?");
-                return con;
+        continueWhenNeedSaving(callback: () => void) {
+            if (this.editor.hasUnsavedChanges()) {
+                var dialog = new Gui.ConfirmDialog("There are unsaved changes!\nDo you really want to continue?");
+                dialog.onConfirm = callback;
+                dialog.show();
+            } else {
+                callback();
             }
-            return true;
         }
 
         _onButtonClose() {
-            if (this.continueWhenNeedSaving()) { super._onButtonClose(); }
+            this.continueWhenNeedSaving(() => {
+                super._onButtonClose();
+            });
         }
 
 
@@ -123,24 +127,25 @@ module Cats.Gui {
          */
         closeAll() {
             var pages = <EditorPage[]>this.getChildren().concat();
-            if (this.continueIfUnsavedChanges(pages)) {
+            this.continueIfUnsavedChanges(pages, () => {
                 pages.forEach((page) => {
                     this.remove(page);
                 });
-            }
+            });
         }
 
         /**
          * close one page
          */
         close(page= this.getActivePage()) {
-            if (page.continueWhenNeedSaving()) {
+            if (! page) return;
+            page.continueWhenNeedSaving(() => {
                 this.remove(page);
-            }
+            });
         }
 
         onChangeEditor(cb : (editor:Editor, page:EditorPage)=>void) {
-            this.addListener("changeSelection", (ev) => {
+            this.addListener("changeSelection", (ev:qx.event.type.Data) => {
                 var page:EditorPage = ev.getData()[0];
                 if (page) {
                     cb(page.editor, page);
@@ -159,22 +164,25 @@ module Cats.Gui {
                 (page)=>{ return page !== closePage;}
             );
             
-            if (this.continueIfUnsavedChanges(pages)) {
+            this.continueIfUnsavedChanges(pages, () => {
                 pages.forEach((page) => {
                     this.remove(page);
                 });
-            }
+            });
         }
 
-        private continueIfUnsavedChanges(pages:EditorPage[]) {
+        private continueIfUnsavedChanges(pages:EditorPage[], callback: () => void) {
             var hasUnsaved = false; 
             hasUnsaved = pages.some((page) => { 
                 return page.editor.hasUnsavedChanges();
             });
             if (hasUnsaved) {
-                if (!confirm("There are unsaved changes!\nDo you really want to continue?")) return false;
+                var dialog = new Gui.ConfirmDialog("There are unsaved changes!\nDo you really want to continue?");
+                dialog.onConfirm = callback;
+                dialog.show();
+            } else {
+                callback();
             }
-            return true;
         }
 
     
@@ -200,7 +208,7 @@ module Cats.Gui {
         /**
          * Get the currently active editor
          */
-        getActiveEditor(type?) {
+        getActiveEditor(type?:new() => Editor) {
             var page = this.getActivePage();
             if (!page) return null;
             if (type) {
@@ -230,7 +238,7 @@ module Cats.Gui {
            }
         }
   
-        getPagesForFile(filePath) {
+        getPagesForFile(filePath:string) {
             var result:EditorPage[] = [];
             this.getChildren().forEach((page:EditorPage) => {
                 var editor:FileEditor = <any>page.editor;

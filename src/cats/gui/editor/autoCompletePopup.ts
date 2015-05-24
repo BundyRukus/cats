@@ -57,7 +57,7 @@ module Cats.Gui.Editor {
             this.setHeight(200);
             this.createList();
             this.initHandler();
-            this.changeListener = (ev) => this.onChange(ev);
+            this.changeListener = (ev:Event) => this.onChange(ev);
             this.addListener("disappear", this.hidePopup, this);
         }
 
@@ -130,7 +130,7 @@ module Cats.Gui.Editor {
             var matchFunction = this.match_forgiven;
             if (IDE.config.editor.completionMode) {
                 var methodName = "match_" + IDE.config.editor.completionMode;
-                if (this[methodName]) matchFunction = this[methodName];
+                if  (this[methodName]) matchFunction = this[methodName];
             }
 
             var lastItem = this.listModel.getItem(this.listModel.getLength() - 1);
@@ -214,7 +214,7 @@ module Cats.Gui.Editor {
          * Show the popup and make sure the keybinding is in place
          * 
          */
-        private showPopup(completions: Cats.CompletionEntry[]) {
+        private showPopup(completions: CompletionEntry[]) {
             if (this.list.isSeeable() || (completions.length === 0)) return;
             var cursor = this.editor.getCursorPosition();
             var coords = this.editor.renderer.textToScreenCoordinates(cursor.row, cursor.column);
@@ -284,7 +284,7 @@ module Cats.Gui.Editor {
         }
 
 
-        private onChange2(e) {
+        private onChange2(e:any) {
             var key = e.args || "";
             alert(key);
             if ((key == null) || (!AutoCompletePopup.isJsIdentifierPart(key.charCodeAt(0)))) {
@@ -299,7 +299,7 @@ module Cats.Gui.Editor {
          * Check wether the typed character is reason to stop
          * the auto-complete task
          */
-        private onChange(ev) {
+        private onChange(ev:any) {
             var key: string = ev.data.text;
 
             if ((key == null) || (!AutoCompletePopup.isJsIdentifierPart(key.charCodeAt(0)))) {

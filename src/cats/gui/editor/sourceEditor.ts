@@ -131,7 +131,7 @@ module Cats.Gui.Editor {
             return editor;
         }
 
-        executeCommand( name, ...args ): any {
+        executeCommand( name:string, ...args:any[] ): any {
             switch ( name ) {
                 case 'toggleInvisibles':
                     this.aceEditor.setShowInvisibles( !this.aceEditor.getShowInvisibles() );
@@ -194,10 +194,10 @@ module Cats.Gui.Editor {
          * wether the cursor should stay on the same position
          * 
          */
-        setContent( content, keepPosition= true ) {
+        setContent( content:string, keepPosition= true ) {
             var pos: ace.Position;
             if ( keepPosition ) pos = this.getPosition();
-            this.aceEditor.getSession().setValue( content );
+            this.editSession.setValue( content );
             if ( pos ) this.moveToPosition( pos );
         }
 
@@ -284,8 +284,8 @@ module Cats.Gui.Editor {
             this.selectedTextMarker = this.editSession.addMarker( range, "ace_selected-word", "text" );
         }
 
-        moveToPosition( pos: Cats.Range );
-        moveToPosition( pos: ace.Position );
+        moveToPosition( pos: Cats.Range ):void;
+        moveToPosition( pos: ace.Position ):void;
         moveToPosition( pos: any ) {
             if ( !this.aceEditor ) {
                 this.pendingPosition = pos;
@@ -312,7 +312,8 @@ module Cats.Gui.Editor {
          * 
          */
         getPosition() {
-            return this.aceEditor.getCursorPosition();
+            if (this.aceEditor)
+                return this.aceEditor.getCursorPosition();
         }
 
         /**

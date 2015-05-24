@@ -36,11 +36,12 @@ module Cats.Gui {
         /**
          * Add a new process to the table
          */
-        addProcess(child, cmd: string) {
-            var row = new Array(
+        addProcess(child: any, cmd: string) {
+            var row = new Array<any>(
                 "" + child.pid, cmd, child
                 );
-            this.table.getTableModel().addRows([row]);
+            var model = <qx.ui.table.model.Simple>this.table.getTableModel();
+            model.addRows([row]);
             this.table.getSelectionModel().resetSelection();
         }
 
@@ -60,7 +61,7 @@ module Cats.Gui {
 
         private addButton(bar: qx.ui.toolbar.ToolBar, label: string, signal: string) {
             var button = new qx.ui.toolbar.Button(label);
-            button.addListener("execute", (evt) => { this.sendSignal(signal); });
+            button.addListener("execute", () => { this.sendSignal(signal); });
             bar.add(button);
         }
 
@@ -72,8 +73,8 @@ module Cats.Gui {
             tableModel.setData([]);
 
             var custom: IMap = {
-                tableColumnModel: function(obj) {
-                    return new qx.ui.table.columnmodel.Resize(obj);
+                tableColumnModel: function() {
+                    return new qx.ui.table.columnmodel.Resize();
                 }
             };
 

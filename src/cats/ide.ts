@@ -73,6 +73,30 @@ module Cats {
             window.onpopstate = (data) => {
                 if (data && data.state) this.goto(data.state);
             }
+            
+            this.loadShortCuts();
+            
+        }
+
+        private loadShortCuts() {
+            var fileName = OS.File.join(this.catsHomeDir, "resource/shortcuts.json");
+            var c = OS.File.readTextFile(fileName);
+            var shortCutSets:{} = JSON.parse(c);
+            var os = "linux";
+            if (Cats.OS.File.isWindows()) {
+              os = "win";
+            } else if (Cats.OS.File.isOSX()) {
+              os = "osx";
+            }
+            var shortCuts = shortCutSets[os];
+            for (var shortCut in shortCuts) {
+                var commandName = shortCuts[shortCut];
+                var cmd = new qx.ui.core.Command(shortCut);
+                cmd.addListener("execute", (function(commandName: string) {
+                  Cats.Commands.CMDS[commandName].command();
+                }).bind(null, commandName));
+            }
+            
         }
 
         /**
@@ -80,6 +104,25 @@ module Cats {
          */ 
         private loadIconsMap() {
             return JSON.parse(OS.File.readTextFile("resource/icons.json"));
+        }
+
+
+        setColors() {
+            var manager = qx.theme.manager.Color.getInstance();
+            var colors = manager.getTheme()["colors"];
+            var jcolors = JSON.stringify(colors.__proto__,null,4);
+            IDE.console.log(jcolors);
+            
+            var editor = new Gui.Editor.SourceEditor();
+            IDE.editorTabView.addEditor(editor,{row:0, column:0});
+            editor.setContent(jcolors);
+            editor.setMode("ace/mode/json");
+
+            IDE.console.log(jcolors);
+            for (var c in colors) {
+                var dyn = manager.isDynamic(c);
+                IDE.console.log(c + ":" + colors[c] + ":" + dyn);
+            }
         }
 
 
@@ -313,38 +356,41 @@ module Cats {
             // Catch the close of the windows in order to save any unsaved changes
             var win = GUI.Window.get();
             win.on("close", function() {
+                var doClose = () => {
+                    IDE.savePreferences();
+                    this.close(true);
+                };
+
                 try {
                     if (IDE.editorTabView.hasUnsavedChanges()) {
-                        if (!confirm("There are unsaved changes!\nDo you really want to continue?")) return;
+                        var dialog = new Gui.ConfirmDialog("There are unsaved changes!\nDo you really want to continue?");
+                        dialog.onConfirm = doClose;
+                        dialog.show();
+                    } else {
+                        doClose();
                     }
-                    IDE.savePreferences();
                 } catch (err) { } // lets ignore this
-                this.close(true);
             });
         }
         
         
         /**
-         * Close an open project
-         * 
-         * @param project to be closed
-         */
-        closeProject(project:Project) {
-            // TODO support multiple projects open in same IDE
-            this.project.close();
-            this.project = null;
-        }
-        
-        /**
-         * Quit the application. If there are unsaved changes ask the user if he really
-         * wants to quit.
+         * Quit the application. If there are unsaved changes ask the user if they really
+         * want to quit.
          */ 
         quit() {
+            var doClose = () => {
+                this.savePreferences();
+                GUI.App.quit();
+            };
+
             if (this.editorTabView.hasUnsavedChanges()) {
-                if (! confirm("There are unsaved files!\nDo you really want to quit?")) return;
+                var dialog = new Gui.ConfirmDialog("There are unsaved files!\nDo you really want to quit?");
+                dialog.onConfirm = doClose;
+                dialog.show();
+            } else {
+                doClose();
             }
-            this.savePreferences();
-            GUI.App.quit();
         }
  
     }

@@ -20,7 +20,7 @@ module Cats.Gui {
      */
     export class ConfigDialog extends qx.ui.window.Window {
 
-        constructor(name) {
+        constructor(name:string) {
             super(name);
 
             var layout = new qx.ui.layout.VBox();
@@ -139,7 +139,7 @@ module Cats.Gui {
 
         protected finalStep() {
             var controller = new qx.data.controller.Form(null, this.form);
-            this.model = controller.createModel();
+            this.model = controller.createModel(false);
             var renderer = new qx.ui.form.renderer.Single(this.form);
             this.add(renderer);
         }
